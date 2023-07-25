@@ -27,66 +27,57 @@ Click "Create."<br>
 Once the VM is created, use PowerShell (Windows) or Terminal (MacOS) to SSH into it using the credentials you provided.<br>
 Wait for the deployment to finish ("Your OpenVAS is deploying, please wait" → "hossted stage done").<br>
 Access the web app URL shown and log in with the provided username and password (or try admin/admin). After logging in, reset the admin password to: Cyberdemo702!<br/>
-<p align="center"><img src="https://i.imgur.com/RFPZt7Y.png" height="50%" width="50%"><br>
+<p align="center"><img src="https://i.imgur.com/saNDEbr.png" height="80%" width="80%"><br>
 <br>
-<p align="left">
-After configuring the settings in Azure Defender to gather all Windows security events, I linked my Log Analytics workspace to the previously set up virtual machine. We then RDP into our virtual machine, where a tailor-made PowerShell script was employed, leveraging a third-party API service called "ipgeolocation," allowing the retrieval and logging of geo data pertaining to potential attackers. This data was then incorporated into a custom log, specifically designed within my Azure Log Analytics workspace, to effectively import the logged information from the virtual machine.  <br/>
-<img src="https://i.imgur.com/I7Nl3s5.png" height="100%" width="100%">
+<p align="center">
+<h2>Create a vulnerable virtual machine in the Azure portal by following these steps:</h2>
+Go to https://portal.azure.com/ and search for Virtual Machines.<br>
+Create a new Virtual Machine with the Resource Group named "Vulnerability-Management."<br>
+Name the VM as "Win10-Vulnerable" and set the region to be the same as the OpenVAS VM (West US 3).<br>
+Assign the Virtual Network as the same as OpenVAS (important for connectivity).<br>
+Choose the image as "Windows 10 Pro" and select any size with 2 vCPUs.<br>
+Set the username as "cyberdemo" and the password as "Cyberdemo702!" for login.<br>
+Under Networking, ensure the VM is on the same Vnet as OpenVAS.<br>
+<p align="center"><img src="https://i.imgur.com/AnABq7P.png" height="80%" width="80%"><br>
+<p align="left">Create the VM and after it's created, check if you can Remote Desktop Protocol (RDP) into it using the provided credentials.<br>
+Once logged in, make the VM vulnerable by disabling the Windows Firewall and installing outdated software, such as an old version of Firefox, VLC Player, and Adobe Reader. Restart the VM after making these changes.<br/>
+<p align="center"><img src="https://i.imgur.com/V6Pigtx.png" height="80%" width="80%">
 <br />
 <br />
-Creating custom logs under log analytics workspace that would allow to use our custom logs with the geodata.
-<br>
-<br>
-Select Tables on the left blade -> New Custom logs(MMA based)In the new custom log blade enter details like log name ,description and its source.Make sure the source is the same as the source where log file is stored in the virtual machine.In our case C:\ProgramData\failed_rdp.log.
+<p align="center"><h2>Configure OpenVAS to perform the first unauthenticated scan against the Vulnerable VM</h2>
+Log in to OpenVAS and navigate to Assets → Hosts → New Host.<br>
+Add the private IP address of the Client VM as a new Host.<br>
+Create a new Target from the Host and name it "Azure Vulnerable VMs."<br>
+Take note of the credentials for later use, as SMB credentials will be added later.<br>
+Create a new Task named "Scan - Azure Vulnerable VMs" with the "Azure Vulnerable VMs" as the Scan Target and save the task.<br>
+Start the "Scan - Azure Vulnerable VMs" Task and take note of the scan status.<br>
+Note that the scan did not find the outdated softwares we installed because this was a unauthenticated scan.<br/>
+<img src="https://i.imgur.com/cTMW1bN.png" height="100%" width="100%">
+<h2>After the unauthenticated scan is completed, configure the VM for credentialed scans</h2>
+Disable Windows Firewall, User Account Control, and enable Remote Registry on the Client VM.<br>
+Launch Registry Editor (regedit.exe) in "Run as administrator" mode, navigate to HKEY_LOCAL_MACHINE hive, and open SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System.<br>
+Create a new DWORD (32-bit) value named "LocalAccountTokenFilterPolicy" with a value of 1 to enable credentialed scans. Restart the VM after making the changes.<br>
+<p align="center"><img src="https://i.imgur.com/LcCwfev.png" height="60%" width="60%">
 
-Custom log is now created and can be used as a query in the logs section of log analytics workspace.<br/>
-<img src="https://i.imgur.com/r6CZtWS.png" height="100%" width="100%">
-<br />
-<br />
-Extracting custom fields from the query result. We use the extend option to extract data from the query result.The query used is given below:<br>
-<br>
-FAILED_RDP_WITH_GEO_CL
-| extend username = extract(@”username:([^,]+)”, 1, RawData),<br>
-timestamp = extract(@”timestamp:([^,]+)”, 1, RawData),<br>
-latitude = extract(@”latitude:([^,]+)”, 1, RawData),<br>
-longitude = extract(@”longitude:([^,]+)”, 1, RawData),<br>
-sourcehost = extract(@”sourcehost:([^,]+)”, 1, RawData),<br>
-state = extract(@”state:([^,]+)”, 1, RawData),<br>
-label = extract(@”label:([^,]+)”, 1, RawData),<br>
-destination = extract(@”destinationhost:([^,]+)”, 1, RawData),<br>
-country = extract(@”country:([^,]+)”, 1, RawData)<br>
-| where destination != “samplehost”<br>
-| where sourcehost != “”<br>
-| summarize event_count=count() by latitude, longitude, sourcehost, label, destination, country<br/>
-<br>
-Setting up a map in Sentinel. Creating a new workbook in Azure Sentinel and adding a query which is the same we used earlier to extract custom fields from the logs.
-<img src="https://i.imgur.com/19cRIjK.png" height="100%" width="100%">
-<br />
-<br />
-We utilize the map visualization type and customize the map settings to suit our preferences. With this, we can plot the map using longitude/latitude, country, and other relevant data. The specific map settings I used are listed below.<br/>
-<img src="https://i.imgur.com/rgwaZuI.png" height="100%" width="100%">
-<br />
-<br />
-We are nearing the completion of setting up Sentinel. Now, configure the auto-refresh option to occur every 5 minutes and patiently await various attackers to discover and attempt to breach our vulnerable virtual machine.<br/>
-<br />
-<br />
-While setting this up, you can see we already have 2 attempts from India and Singapore(the 4 from US was from me for testing purposes)<br/>
-<img src="https://i.imgur.com/NtHtq3h.png" height="100%" width="100%">
-<br>
-<br>
-After leaving this on for 1 full day, here are the results.<br>
-<img src="https://i.imgur.com/Dq06dAF.png" height="100%" width="100%">
-<br>
-<br>
-<b>Conclusion</b><br>
-A SIEM (Security Information and Event Management) enables us to investigate, record, and analyze information and events related to system security. It proves to be a valuable tool for detecting potential security threats. In this home-lab, we showcase the utilization of Microsoft Azure Sentinel to effectively capture and analyze these crucial security events.
-<br>
-<br>
-<b>Key Concepts</b><br>
-- Deploying and establishing a connection to a Virtual Machine using RDP (Remote Desktop Protocol).<br>
-- Manipulating Inbound Rules to regulate data traffic, and to allow traffic from any port or IP address.<br>
-- Leveraging Azure Sentinel to record and monitor security events on a Virtual Machine.<br>
-- Utilizing Log Analytics Workspace to efficiently log and organize collected data.<br>
-- Analyzing the data obtained from security logs in the Event Viewer.<br>
-- Employing PowerShell ISE to extract valuable insights and information.<br>
+<p align="left"><h2>Configure credentials for credentialed scans in OpenVAS</h2>
+In OpenVAS, go to Configuration → Credentials → New Credential.<br>
+Name the new credential as "Azure VM Credentials," allow insecure use, and set the Username as "cyberdemo" and Password as "Cyberdemo702!".<br>
+Go to Configuration → Targets and clone the previous Target, naming it "Azure Vulnerable VMs - Credentialed Scan."<br>
+Ensure the Private IP is still accurate for the VM and select the previously created SMB credentials for the new target.<br>
+<img src="https://i.imgur.com/DTB8rDc.png" height="100%" width="100%">
+<h2>Execute the Credentialed Scan against the Vulnerable VM:</h2>
+In OpenVAS, go to Scans → Tasks and clone the "Scan - Azure Vulnerable VMs" Task, then edit it.<br>
+Name the new Task as "Scan - Azure Vulnerable VMs - Credentialed" and set the Targets as "Azure Vulnerable VMs - Credentialed Scan."<br>
+Start the new Credentialed Scan and wait for it to finish (it will take longer than the unauthenticated scan).<br>
+After the scan finishes, review the findings, including SMB Login status and individual vulnerabilities, especially Criticals from the outdated Adobe Reader and Firefox version.<br>
+<img src="https://i.imgur.com/9VcNDN8.png" height="100%" width="100%">
+<h2>Remediate Vulnerabilities on the Client VM</h2>
+Log back into the Win10-Vulnerable VM and uninstall Adobe Reader, VLC Player, and Firefox.<br>
+Restart the VM after making the remediations.<br>
+<img src="https://i.imgur.com/A8MaBPP.png" height="100%" width="100%">
+<h2>Verify Remediations:</h2>
+Re-initiate the "Scan - Azure Vulnerable VMs - Credentialed" scan in OpenVAS and observe the results to verify that the vulnerabilities have been remediated. As shown in the image below, the scan results indicate that Adobe Reader, Firefox, and VLC Player have been removed, but there are still several vulnerabilities remaining on the workstation.<br>
+<img src="https://i.imgur.com/KYHCxs6.png" height="100%" width="100%"><br>
+<h2>Conclusion</h2>
+Upon completing the update process for my virtual machine, its security has been significantly enhanced. This highlights the crucial significance of regularly keeping operating systems and applications up to date (in our case, uninstalling old applications). These updates often contain crucial security bug fixes that play a vital role in protecting your system from potential vulnerabilities and threats.
 </p>
