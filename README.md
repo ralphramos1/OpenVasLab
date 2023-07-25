@@ -14,19 +14,19 @@ Let's begin by registering for a Azure account here https://azure.microsoft.com/
 <br />
 <br />
 <h2>Prepare Vulnerability Management Scanner (OpenVAS)</h2>
-- Go to the Azure portal: https://portal.azure.com<br>
-- Navigate to the Marketplace and search for "OpenVAS secured and supported by HOSSTED."<br>
-- Select the pre-set configuration with the weakest settings.<br>
+Go to the Azure portal: https://portal.azure.com<br>
+Navigate to the Marketplace and search for "OpenVAS secured and supported by HOSSTED."<br>
+Select the pre-set configuration with the weakest settings.<br>
 Click "Continue to Create VM."<br>
 Fill in the details:<br>
 Resource Group: Vulnerability-Management<br>
 VM Name: OpenVAS (Note the region and Vnet, I will be using West US 3)<br>
-Authentication: Username → azureuser / Password → Cyberlab123!<br>
+Authentication: Username → cyberdemo / Password → Cyberdemo702!<br>
 Monitoring: Disable Boot Diagnostic<br>
 Click "Create."<br>
 Once the VM is created, use PowerShell (Windows) or Terminal (MacOS) to SSH into it using the credentials you provided.<br>
 Wait for the deployment to finish ("Your OpenVAS is deploying, please wait" → "hossted stage done").<br>
-Access the web app URL shown and log in with the provided username and password (or try admin/admin). After logging in, reset the admin password to: Cyberlab123!<br/>
+Access the web app URL shown and log in with the provided username and password (or try admin/admin). After logging in, reset the admin password to: Cyberdemo702!<br/>
 <p align="center"><img src="https://i.imgur.com/RFPZt7Y.png" height="50%" width="50%"><br>
 <br>
 <p align="left">
